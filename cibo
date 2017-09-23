@@ -1,0 +1,77 @@
+#!/usr/bin/perl 
+
+use Getopt::Long qw(GetOptions);
+use Cwd;
+
+$baseurl = "https://danbooru.donmai.us/";
+$pageurl = "posts?page=";
+$tagsurl = "&tags=";
+$tmplocation = "/usr/tmp/Danbooru/";
+$listname = $tags.".txt";
+$fehlist = $tmplocation.$listname;
+@listfile = ("touch", "$fehlist");
+@maketmpdir = ("mkdir", "$tmplocation");
+system `@maketmpdir`;
+system `@listfile`;
+$tags = '';
+$destination = getcwd();
+
+GetOptions(
+	'tags|t=s' => \$tags,
+	'page|p=i{,2}' => \@pagenumber,
+	'download|d' => \&download,
+	'view|v' => \&view,
+);
+
+sub fix {
+   if ($pagenumber[1] == undef){
+      $pagenumber[1] = $pagenumber[0];
+   }
+   if ($pagenumber[1] < $pagenumber[0]) {
+      ($pagenumber[0], $pagenumber[1]) = ($pagenumber[1], $pagenumber[0]);
+   }
+}
+
+sub base {
+	$fullurl = $baseurl.$pageurl.$pagenumber[1].$tagsurl.$tags;
+	$textfile = $pageurl.$pagenumber[1].$tagsurl.$tags;
+	@pagegrab = ("wget -q -o /dev/null -P \"$tmplocation\" \"$fullurl\""); 
+	system `@pagegrab`;
+	$tmpfile = $tmplocation.$textfile;
+	@grepcommand = ("grep -oP 'data-file-url=\"/\\K[^\"]+' \"$tmpfile\"");
+	chomp(@pictures = `@grepcommand`);
+	return @pictures;
+}
+
+sub view {
+   fix;
+	while($pagenumber[1] >= $pagenumber[0]){
+		base;
+		@picrev = reverse(@pictures);
+		foreach(@picrev){
+			$pictureurl = $baseurl.$_;
+			$listpath = $tmplocation.$listname;
+			@listcreation = ("echo \"$pictureurl\" | cat - \"$listpath\" > temp && mv temp \"$listpath\"");
+			system `@listcreation`;
+		}
+		$pagenumber[1]--;
+	}
+	@fehview = ("feh", "-f", $listpath, "-F");
+	system `@fehview`;
+}
+
+sub download {
+   fix;
+	while($pagenumber[1] >= $pagenumber[0]){
+		base;
+		foreach(@pictures){
+			$pictureurl = $baseurl.$_;
+			@downloadpictures = ("wget -P \"$destination\" \"$pictureurl\"");
+			system `@downloadpictures`;
+		}
+		$pagenumber[1]--;
+	}
+}
+
+@cleanup = ("rm -r \"$tmplocation\"");
+system `@cleanup`;
