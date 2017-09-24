@@ -17,3 +17,4 @@ TODO
 * config file
 * Gelbooru and other booru support
 * support for using an account
+* setting a locaiton for saving images.
